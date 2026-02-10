@@ -29,17 +29,36 @@ const PDF = {
                 .replace(/\n/g, '<br>');
         }
 
+        // Split full report into sections for proper page breaks
+        let sectionsHtml = '';
+        if (result.fullReport) {
+            const sections = result.fullReport.split(/(?=^\d+\.\s+)/m).filter(s => s.trim());
+            sectionsHtml = sections.map(section => {
+                const formatted = section
+                    .replace(/^(\d+)\.\s+(.+)$/m, '<h3 style="font-size:14pt;color:#1a1a1a;margin-top:20px;border-bottom:1px solid #ddd;padding-bottom:5px;">$1. $2</h3>')
+                    .replace(/\n/g, '<br>');
+                return `<div class="pdf-section">${formatted}</div>`;
+            }).join('');
+        }
+
         // Build the HTML for the PDF
         const container = document.createElement('div');
         container.innerHTML = `
+            <style>
+                .pdf-section { page-break-inside: avoid; break-inside: avoid; margin-bottom: 12px; }
+                .pdf-bullets { page-break-inside: avoid; break-inside: avoid; }
+                .pdf-header { page-break-inside: avoid; break-inside: avoid; }
+                h3 { page-break-after: avoid; break-after: avoid; }
+                li { page-break-inside: avoid; break-inside: avoid; }
+            </style>
             <div style="font-family:Inter,Helvetica,Arial,sans-serif;font-size:11pt;line-height:1.6;color:#333;max-width:750px;margin:0 auto;padding:30px;">
-                <div style="text-align:center;border-bottom:2px solid #2078B4;padding-bottom:20px;margin-bottom:25px;">
+                <div class="pdf-header" style="text-align:center;border-bottom:2px solid #2078B4;padding-bottom:20px;margin-bottom:25px;">
                     <img src="/assets/procasur-logo.png" style="height:36px;margin-bottom:8px;" crossorigin="anonymous">
                     <h1 style="font-size:13pt;color:#1a1a1a;letter-spacing:2px;text-transform:uppercase;margin:8px 0 0 0;">Land Projects Observatory</h1>
                     <div style="font-size:10pt;color:#2078B4;font-style:italic;">Cross-Project Analytical Report</div>
                 </div>
 
-                <div style="font-size:15pt;color:#2078B4;text-align:center;margin:25px 0;font-weight:700;">
+                <div class="pdf-header" style="font-size:15pt;color:#2078B4;text-align:center;margin:25px 0;font-weight:700;">
                     ${result.title || 'Analisis de Proyectos'}
                 </div>
                 <div style="text-align:center;font-size:9pt;color:#888;margin-bottom:8px;">${date}</div>
@@ -48,14 +67,14 @@ const PDF = {
                 </div>
 
                 ${bulletsHtml ? `
-                    <div style="background:#f0f7fd;border-left:4px solid #2078B4;padding:14px 18px;margin:18px 0 25px 0;border-radius:4px;">
+                    <div class="pdf-bullets" style="background:#f0f7fd;border-left:4px solid #2078B4;padding:14px 18px;margin:18px 0 25px 0;border-radius:4px;">
                         <div style="font-weight:700;font-size:11pt;margin-bottom:8px;color:#1a1a1a;">Hallazgos Clave</div>
                         <ul style="margin:0;padding-left:18px;">${bulletsHtml}</ul>
                     </div>
                 ` : ''}
 
                 <div style="font-size:11pt;line-height:1.7;text-align:justify;">
-                    ${reportHtml}
+                    ${sectionsHtml}
                 </div>
 
                 <div style="margin-top:35px;padding-top:12px;border-top:1px solid #2078B4;text-align:center;font-size:8pt;color:#888;">
@@ -66,11 +85,12 @@ const PDF = {
 
         // Use html2pdf.js for direct download
         const opt = {
-            margin: [10, 10, 10, 10],
+            margin: [15, 12, 15, 12],
             filename: `PROCASUR_Analysis_${new Date().toISOString().slice(0, 10)}.pdf`,
             image: { type: 'jpeg', quality: 0.95 },
             html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
         };
 
         html2pdf().set(opt).from(container).save();
