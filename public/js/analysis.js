@@ -18,7 +18,7 @@ const Analysis = {
         body.innerHTML = `
             <div class="loading">
                 <div class="spinner"></div>
-                <div class="loading-text">Analizando conexiones entre ${projects.length} proyectos...</div>
+                <div class="loading-text">${App.t('analyzing')} ${projects.length} ${App.t('projects')}...</div>
             </div>
         `;
 
@@ -26,7 +26,7 @@ const Analysis = {
             const res = await fetch('/api/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projects })
+                body: JSON.stringify({ projects, lang: App.lang })
             });
 
             if (!res.ok) {
@@ -49,7 +49,7 @@ const Analysis = {
         } catch (err) {
             body.innerHTML = `
                 <div class="empty-state">
-                    <h3>Error en el analisis</h3>
+                    <h3>${App.t('analysisError')}</h3>
                     <p>${err.message}</p>
                 </div>
             `;
@@ -78,7 +78,7 @@ const Analysis = {
             <div class="modal-title">${result.title || 'Analisis de Proyectos'}</div>
             ${bulletsHtml}
             <p style="text-align:center;color:#6B7280;font-size:15px;margin-top:16px;">
-                El informe completo se incluye en el PDF descargable.
+                ${App.t('pdfNote')}
             </p>
         `;
 

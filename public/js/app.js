@@ -1,15 +1,158 @@
 /* ==========================================================================
-   app.js — Main application: data loading, navigation, shared state
+   app.js — Main application: data loading, navigation, shared state, i18n
    ========================================================================== */
+
+// --- i18n translations ---
+const i18n = {
+    es: {
+        // Nav
+        dashboard: 'Dashboard', map: 'Map Explorer', network: 'Network Analysis', reports: 'Reportes',
+        // KPIs
+        totalProjects: 'Total Proyectos', activeProjects: 'Proyectos Activos', countries: 'Paises',
+        totalFunding: 'Valor Total (USD)', highLand: 'Alta Intensidad Tierra',
+        // Charts
+        chartCountries: 'Proyectos por Pais', chartStatus: 'Proyectos por Estado',
+        chartLand: 'Componente Tierra', chartTimeline: 'Timeline de Financiamiento',
+        chartSectors: 'Principales Sectores', chartCofin: 'Principales Cofinanciadores',
+        // Map
+        filterCountry: 'Pais', filterStatus: 'Estado', filterSector: 'Sector',
+        filterLand: 'Componente Tierra', filterPeriod: 'Periodo', all: 'Todos',
+        apply: 'Aplicar', reset: 'Reset', refreshData: 'Actualizar Datos',
+        analyzeConnections: 'Analizar Conexiones', clearSelection: 'Limpiar Seleccion',
+        selected: 'Seleccionados', select: 'Seleccionar', deselect: 'Deseleccionar',
+        period: 'Periodo', totalBudget: 'Presupuesto Total',
+        landComponent: 'Componente Tierra',
+        // Map legend
+        legendTitle: 'Componente Tierra', legendHigh: 'Alta - Objeto central',
+        legendMed: 'Media - Componente instrumental', legendLow: 'Baja - Contextual',
+        legendNone: 'Sin clasificar', legendSelected: 'Seleccionado',
+        // Network
+        generateNetwork: 'Generar Analisis de Red', filterIntensity: 'Filtrar por Intensidad',
+        networkTitle: 'Red de Proyectos IFAD',
+        networkDesc: 'Haz clic en "Generar Analisis de Red" para que la IA analice las conexiones entre todos los proyectos del portfolio.',
+        networkLoading: 'Generando analisis de red con IA... Esto puede tomar 30-60 segundos.',
+        projectDetail: 'Detalle del Proyecto', selectNode: 'Selecciona un nodo en el grafo para ver sus detalles y conexiones.',
+        crossFindings: 'Hallazgos Transversales', clusters: 'Clusters Identificados',
+        connections: 'Conexiones', justification: 'Justificacion', intensity: 'Intensidad Tierra',
+        showAll: 'Mostrar todos', saveReport: 'Guardar en Reportes',
+        // Analysis modal
+        analyzing: 'Analizando conexiones entre',
+        projects: 'proyectos', downloadPdf: 'Descargar PDF', close: 'Cerrar',
+        pdfNote: 'El informe completo se incluye en el PDF descargable.',
+        analysisError: 'Error en el analisis',
+        // Reports
+        reportHistory: 'Historial de Reportes', noReports: 'Sin reportes',
+        noReportsDesc: 'Los reportes generados desde el Map Explorer o Network Analysis apareceran aqui.',
+        view: 'Ver', delete: 'Eliminar', networkReport: 'Analisis de Red',
+    },
+    en: {
+        dashboard: 'Dashboard', map: 'Map Explorer', network: 'Network Analysis', reports: 'Reports',
+        totalProjects: 'Total Projects', activeProjects: 'Active Projects', countries: 'Countries',
+        totalFunding: 'Total Value (USD)', highLand: 'High Land Intensity',
+        chartCountries: 'Projects by Country', chartStatus: 'Projects by Status',
+        chartLand: 'Land Component', chartTimeline: 'Funding Timeline',
+        chartSectors: 'Top Sectors', chartCofin: 'Top Co-financiers',
+        filterCountry: 'Country', filterStatus: 'Status', filterSector: 'Sector',
+        filterLand: 'Land Component', filterPeriod: 'Period', all: 'All',
+        apply: 'Apply', reset: 'Reset', refreshData: 'Refresh Data',
+        analyzeConnections: 'Analyze Connections', clearSelection: 'Clear Selection',
+        selected: 'Selected', select: 'Select', deselect: 'Deselect',
+        period: 'Period', totalBudget: 'Total Budget',
+        landComponent: 'Land Component',
+        legendTitle: 'Land Component', legendHigh: 'High - Central object',
+        legendMed: 'Medium - Instrumental component', legendLow: 'Low - Contextual',
+        legendNone: 'Unclassified', legendSelected: 'Selected',
+        generateNetwork: 'Generate Network Analysis', filterIntensity: 'Filter by Intensity',
+        networkTitle: 'IFAD Projects Network',
+        networkDesc: 'Click "Generate Network Analysis" for AI to analyze connections across the entire project portfolio.',
+        networkLoading: 'Generating network analysis with AI... This may take 30-60 seconds.',
+        projectDetail: 'Project Detail', selectNode: 'Select a node in the graph to see its details and connections.',
+        crossFindings: 'Cross-Cutting Findings', clusters: 'Identified Clusters',
+        connections: 'Connections', justification: 'Justification', intensity: 'Land Intensity',
+        showAll: 'Show all', saveReport: 'Save to Reports',
+        analyzing: 'Analyzing connections between',
+        projects: 'projects', downloadPdf: 'Download PDF', close: 'Close',
+        pdfNote: 'The full report is included in the downloadable PDF.',
+        analysisError: 'Analysis error',
+        reportHistory: 'Report History', noReports: 'No reports',
+        noReportsDesc: 'Reports generated from Map Explorer or Network Analysis will appear here.',
+        view: 'View', delete: 'Delete', networkReport: 'Network Analysis',
+    }
+};
 
 const App = {
     projects: [],
     selectedProjects: [],
     currentView: 'dashboard',
+    lang: 'es',
+
+    t(key) {
+        return (i18n[this.lang] && i18n[this.lang][key]) || key;
+    },
 
     async init() {
         this.setupNavigation();
+        this.setupLangSelector();
         await this.loadProjects();
+    },
+
+    // --- Language ---
+    setupLangSelector() {
+        const sel = document.getElementById('lang-selector');
+        if (!sel) return;
+        sel.addEventListener('change', (e) => {
+            this.lang = e.target.value;
+            this.applyTranslations();
+            // Re-render dashboard
+            if (typeof Dashboard !== 'undefined') Dashboard.render(this.projects);
+            // Re-render reports
+            if (typeof ReportsView !== 'undefined' && this.currentView === 'reports') ReportsView.render();
+        });
+    },
+
+    applyTranslations() {
+        const t = (k) => this.t(k);
+        // Nav tabs
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            const view = tab.dataset.view;
+            if (view && t(view)) tab.textContent = t(view);
+        });
+        // KPI labels
+        const kpiMap = { 'kpi-total': 'totalProjects', 'kpi-active': 'activeProjects', 'kpi-countries': 'countries', 'kpi-funding': 'totalFunding', 'kpi-highland': 'highLand' };
+        Object.entries(kpiMap).forEach(([id, key]) => {
+            const el = document.getElementById(id);
+            if (el) { const label = el.parentElement.querySelector('.kpi-label'); if (label) label.textContent = t(key); }
+        });
+        // Chart titles
+        const chartMap = { 'chart-countries': 'chartCountries', 'chart-status': 'chartStatus', 'chart-land': 'chartLand', 'chart-timeline': 'chartTimeline', 'chart-sectors': 'chartSectors', 'chart-cofin': 'chartCofin' };
+        Object.entries(chartMap).forEach(([id, key]) => {
+            const canvas = document.getElementById(id);
+            if (canvas) { const h3 = canvas.parentElement.querySelector('h3'); if (h3) h3.textContent = t(key); }
+        });
+        // Map controls labels
+        const filterLabelMap = { 'filter-country': 'filterCountry', 'filter-status': 'filterStatus', 'filter-sector': 'filterSector', 'filter-land': 'filterLand' };
+        Object.entries(filterLabelMap).forEach(([id, key]) => {
+            const sel = document.getElementById(id);
+            if (sel) { const label = sel.parentElement.querySelector('label'); if (label) label.textContent = t(key); }
+        });
+        // Buttons
+        const btnMap = { 'btn-apply-filters': 'apply', 'btn-reset-filters': 'reset', 'btn-refresh-data': 'refreshData', 'btn-analyze': 'analyzeConnections', 'btn-clear-selection': 'clearSelection', 'btn-generate-network': 'generateNetwork', 'btn-download-pdf': 'downloadPdf', 'btn-close-modal': 'close' };
+        Object.entries(btnMap).forEach(([id, key]) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.textContent = t(key);
+        });
+        // Network view texts
+        const networkEmpty = document.getElementById('network-empty');
+        if (networkEmpty) networkEmpty.innerHTML = `<h3>${t('networkTitle')}</h3><p>${t('networkDesc')}</p>`;
+        // Reports title
+        const reportsTitle = document.querySelector('#view-reports > h2');
+        if (reportsTitle) reportsTitle.textContent = t('reportHistory');
+        // Selection counter
+        const selCounter = document.getElementById('selection-counter');
+        if (selCounter) {
+            const count = document.getElementById('selection-count');
+            selCounter.childNodes[0].textContent = t('selected') + ': ';
+        }
     },
 
     // --- Navigation ---
@@ -33,7 +176,6 @@ const App = {
 
         this.currentView = view;
 
-        // Initialize views on first visit
         if (view === 'map' && typeof MapView !== 'undefined' && !MapView.initialized) {
             MapView.init();
         }
@@ -48,9 +190,6 @@ const App = {
             const res = await fetch('/api/projects');
             const data = await res.json();
             this.projects = data.projects || [];
-            console.log(`Loaded ${this.projects.length} projects`);
-
-            // Initialize dashboard with data
             if (typeof Dashboard !== 'undefined') {
                 Dashboard.render(this.projects);
             }

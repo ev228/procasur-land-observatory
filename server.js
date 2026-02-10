@@ -106,7 +106,8 @@ REGLAS CRITICAS PARA MANTENER JSON COMPACTO:
 - crossCuttingFindings: exactamente 3 hallazgos breves
 - NO incluyas donorAlignment (lo omitimos para compacidad)
 - learningRoutePotential: "HIGH", "MEDIUM", o "LOW"
-- Responde SOLO con el JSON, nada mas`;
+- Responde SOLO con el JSON, nada mas
+- IDIOMA: Escribe TODOS los textos (justifications, descriptions, findings, cluster names) en el idioma que se te indique en el mensaje del usuario.`;
 
 // ---------------------------------------------------------------------------
 // GET /api/projects — fetch from Google Sheets
@@ -199,11 +200,12 @@ function parseAnalysis(text) {
 
 app.post('/api/analyze', async (req, res) => {
     try {
-        const { projects } = req.body;
+        const { projects, lang } = req.body;
         if (!projects || projects.length < 2) {
             return res.status(400).json({ error: 'Se requieren al menos 2 proyectos' });
         }
 
+        const langInstruction = lang === 'en' ? 'Write the ENTIRE analysis in English.' : 'Escribe TODO el analisis en Español.';
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
         const projectsText = projects.map((p, i) =>
@@ -216,7 +218,7 @@ app.post('/api/analyze', async (req, res) => {
             system: MANUAL_ANALYSIS_PROMPT,
             messages: [{
                 role: 'user',
-                content: `PROYECTOS SELECCIONADOS:\n\n${projectsText}\n\nGenera el analisis completo en los 3 bloques obligatorios.`
+                content: `PROYECTOS SELECCIONADOS:\n\n${projectsText}\n\nGenera el analisis completo en los 3 bloques obligatorios. ${langInstruction}`
             }]
         });
 
@@ -234,11 +236,12 @@ app.post('/api/analyze', async (req, res) => {
 // ---------------------------------------------------------------------------
 app.post('/api/network', async (req, res) => {
     try {
-        const { projects } = req.body;
+        const { projects, lang } = req.body;
         if (!projects || projects.length < 3) {
             return res.status(400).json({ error: 'Se requieren al menos 3 proyectos' });
         }
 
+        const langLabel = lang === 'en' ? 'English' : 'Español';
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
         const projectsSummary = projects.map(p =>
@@ -251,7 +254,7 @@ app.post('/api/network', async (req, res) => {
             system: NETWORK_ANALYSIS_PROMPT,
             messages: [{
                 role: 'user',
-                content: `PORTFOLIO COMPLETO DE PROYECTOS IFAD:\n\n${projectsSummary}\n\nGenera el analisis de red completo en formato JSON. IMPORTANTE: mantén descripciones breves para que el JSON sea compacto.`
+                content: `PORTFOLIO COMPLETO DE PROYECTOS IFAD:\n\n${projectsSummary}\n\nGenera el analisis de red completo en formato JSON. IMPORTANTE: mantén descripciones breves para que el JSON sea compacto. IDIOMA DE TODOS LOS TEXTOS: ${langLabel}.`
             }]
         });
 

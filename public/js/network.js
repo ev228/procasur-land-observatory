@@ -15,7 +15,7 @@ const NetworkView = {
         graphEl.innerHTML = `
             <div class="loading">
                 <div class="spinner"></div>
-                <div class="loading-text">Generando analisis de red con IA... Esto puede tomar 30-60 segundos.</div>
+                <div class="loading-text">${App.t('networkLoading')}</div>
             </div>
         `;
 
@@ -25,7 +25,7 @@ const NetworkView = {
             const res = await fetch('/api/network', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projects: App.projects }),
+                body: JSON.stringify({ projects: App.projects, lang: App.lang }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -45,14 +45,14 @@ const NetworkView = {
             // Show cross-cutting findings in detail panel
             if (data.crossCuttingFindings) {
                 detailEl.innerHTML = `
-                    <h3>Hallazgos Transversales</h3>
+                    <h3>${App.t('crossFindings')}</h3>
                     ${data.crossCuttingFindings.map(f => `
                         <div class="detail-section">
                             <div class="detail-value">${f}</div>
                         </div>
                     `).join('')}
                     ${data.clusters ? `
-                        <h3 style="margin-top:20px;">Clusters Identificados</h3>
+                        <h3 style="margin-top:20px;">${App.t('clusters')}</h3>
                         ${data.clusters.map(c => `
                             <div class="detail-section">
                                 <div class="detail-label">${c.name}</div>
@@ -64,6 +64,7 @@ const NetworkView = {
                             </div>
                         `).join('')}
                     ` : ''}
+                    <button class="btn btn-primary btn-small" style="margin-top:16px;" onclick="NetworkView.saveToReports()">${App.t('saveReport')}</button>
                 `;
             }
         } catch (err) {
@@ -257,19 +258,19 @@ const NetworkView = {
             <h3>${nodeData.label || nodeData.id}</h3>
 
             <div class="detail-section">
-                <div class="detail-label">Pais</div>
+                <div class="detail-label">${App.t('filterCountry')}</div>
                 <div class="detail-value">${nodeData.country}</div>
             </div>
 
             <div class="detail-section">
-                <div class="detail-label">Intensidad Tierra</div>
+                <div class="detail-label">${App.t('intensity')}</div>
                 <div class="detail-value" style="font-size:18px;font-weight:700;color:${nodeData.landIntensityScore >= 8 ? '#E74C3C' : nodeData.landIntensityScore >= 4 ? '#F39C12' : '#2078B4'}">
                     ${nodeData.landIntensityScore}/10 (${nodeData.landClassification})
                 </div>
             </div>
 
             <div class="detail-section">
-                <div class="detail-label">Justificacion</div>
+                <div class="detail-label">${App.t('justification')}</div>
                 <div class="detail-value" style="font-size:12px;">${nodeData.justification || '-'}</div>
             </div>
 
@@ -284,7 +285,7 @@ const NetworkView = {
             </div>
 
             <div class="detail-section">
-                <div class="detail-label">Conexiones (${connections.length})</div>
+                <div class="detail-label">${App.t('connections')} (${connections.length})</div>
                 ${connections.length > 0 ? connections.map(c => {
                     const srcId = typeof c.source === 'object' ? c.source.id : c.source;
                     const tgtId = typeof c.target === 'object' ? c.target.id : c.target;
@@ -380,7 +381,7 @@ const NetworkView = {
                             return `<div class="connection-item">${node ? `${node.label} (${node.country})` : pid}</div>`;
                         }).join('')}
                     </div>
-                    <button class="btn btn-secondary btn-small" style="margin-top:12px;" onclick="NetworkView.resetHighlight()">Mostrar todos</button>
+                    <button class="btn btn-secondary btn-small" style="margin-top:12px;" onclick="NetworkView.resetHighlight()">${App.t('showAll')}</button>
                 `;
             });
         });
@@ -391,6 +392,32 @@ const NetworkView = {
         this.svg.selectAll('circle').attr('stroke', '#fff').attr('stroke-width', 2).attr('opacity', 1);
         this.svg.selectAll('line').attr('opacity', 0.6);
         this.svg.selectAll('text').attr('opacity', 1);
+    },
+
+    saveToReports() {
+        if (!this.networkData || typeof ReportsView === 'undefined') return;
+        const data = this.networkData;
+        const findings = (data.crossCuttingFindings || []).join('\n* ');
+        const clusterText = (data.clusters || []).map(c =>
+            `${c.name}: ${c.description || ''} (Learning Route: ${c.learningRoutePotential || '-'}${c.proposedRoute ? ', ' + c.proposedRoute : ''})`
+        ).join('\n');
+
+        ReportsView.save({
+            title: App.t('networkReport') + ' — ' + new Date().toLocaleDateString(),
+            bullets: findings ? '* ' + findings : '',
+            fullReport: `${App.t('crossFindings')}:\n${(data.crossCuttingFindings || []).join('\n')}\n\n${App.t('clusters')}:\n${clusterText}`,
+            projects: (data.nodes || []).map(n => ({ id: n.id, proyecto: n.label, pais: n.country })),
+            date: new Date().toISOString(),
+            type: 'network'
+        });
+
+        // Visual feedback
+        const btn = document.querySelector('[onclick="NetworkView.saveToReports()"]');
+        if (btn) {
+            btn.textContent = '✓ ' + App.t('saveReport');
+            btn.disabled = true;
+            setTimeout(() => { btn.textContent = App.t('saveReport'); btn.disabled = false; }, 2000);
+        }
     }
 };
 
